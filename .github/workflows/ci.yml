@@ -51,12 +51,13 @@ jobs:
             sleep 1
           done
 
-      # Playwright E2E tests
+      # ---- Playwright E2E (no lockfile, so use install) ----
       - name: Run Playwright E2E
         run: |
-          npm --prefix e2e ci
+          npm --prefix e2e install
           npx --prefix e2e playwright install --with-deps
           E2E_BASE_URL=http://localhost:8000 npm --prefix e2e test
+
 
       # Optional: build the Docker image so we know it compiles
       - name: Build Docker image
