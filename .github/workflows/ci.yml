@@ -34,22 +34,31 @@ jobs:
       - name: Build frontend
         run: |
           npm --prefix frontend install
+          # ensure plugin is present even if not in package.json
           npm --prefix frontend install -D @vitejs/plugin-react
           npm --prefix frontend run build
 
-
-      # Unit + integration tests
+      # ---- Unit + integration tests ----
       - name: Run pytest (unit + integration)
         run: pytest -q backend/tests
 
-      # Start the API so E2E can hit it
+      # ---- Start the API so E2E can hit it (serve our built frontend) ----
       - name: Start app (background)
+        env:
+          FRONTEND_DIR: ${{ github.workspace }}/frontend/dist
         run: |
+          echo "Serving static files from $FRONTEND_DIR"
           nohup uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --access-log >/tmp/app.log 2>&1 &
+          # Wait for API readiness
           for i in {1..30}; do
-            if curl -fsS http://localhost:8000/api/health >/dev/null; then echo "App up"; break; fi
+            if curl -fsS http://localhost:8000/api/health >/dev/null; then
+              echo "API up"
+              break
+            fi
             sleep 1
           done
+          # Sanity-check homepage
+          curl -f http://localhost:8000 >/dev/null || (echo "Homepage not served"; tail -n 200 /tmp/app.log; exit 1)
 
       # ---- Playwright E2E (no lockfile, so use install) ----
       - name: Run Playwright E2E
@@ -58,6 +67,13 @@ jobs:
           npx --prefix e2e playwright install --with-deps
           E2E_BASE_URL=http://localhost:8000 npm --prefix e2e test
 
+      # Upload Playwright results if anything fails (screens, traces)
+      - name: Upload Playwright results (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: e2e/test-results
 
       # Optional: build the Docker image so we know it compiles
       - name: Build Docker image
