@@ -30,11 +30,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install fastapi==0.115.0 uvicorn[standard]==0.30.6 pydantic==2.8.2 httpx==0.27.2 pytest==8.3.2
 
-      # Build the frontend
+      # ---- Build frontend (no lockfile, so use install) ----
       - name: Build frontend
         run: |
-          npm --prefix frontend ci
+          npm --prefix frontend install
+          npm --prefix frontend install -D @vitejs/plugin-react
           npm --prefix frontend run build
+
 
       # Unit + integration tests
       - name: Run pytest (unit + integration)
